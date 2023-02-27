@@ -1,0 +1,52 @@
+services:
+  license-server:
+    build:
+      context: ./license_portal
+    user: root  # confirm 
+    restart: always
+    ports:
+      - "8000:8000"
+
+    volumes:
+      - ./license_portal:/app
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py runserver 0.0.0.0:8000
+             "
+    links:
+      - postgres
+  
+  app:
+    build:
+      context: ./portal_frontend
+      dockerfile: Dockerfile
+    restart: always
+    command: npm start
+    ports:
+      - "3000:3000"
+
+
+
+  postgres:
+    image: 'postgres:13'
+    environment:
+     POSTGRES_USER: 'licenses'
+     POSTGRES_PASSWORD: 'licenses'
+     POSTGRES_DB: 'licenses'
+  
+  redis:
+    # image: redis
+    image: redis:alpine
+    volumes:
+      - ./data:/data
+    ports:
+      - "6379:6379"
+
+  celery:
+    restart: always
+    build: 
+      context: ./license_portal/
+    command: celery -A config.celery.app worker -l info
+    depends_on:
+      - redis
+
